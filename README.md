@@ -33,20 +33,21 @@ shows:
   - output tokens
   - reasoning tokens
   - cost
+- daily request/token/cost breakdown
 
 Optional views:
 
 ```bash
-./OPC --by-day
+./OPC --latest N
 ```
 
-Shows daily request/token/cost breakdown.
+Shows the latest `N` raw usage requests, for example `./OPC --latest 20`.
 
 ```bash
-./OPC --latest 20
+./OPC --start DD-MM-YYYY --end DD-MM-YYYY
 ```
 
-Shows the latest 20 raw usage requests.
+Filters summaries to an inclusive date range. Either `--start` or `--end` can be used alone.
 
 ```bash
 ./OPC --json
@@ -223,19 +224,31 @@ Then it displays both relative reset time and exact local reset time.
 OPC
 ```
 
-Default summary.
+Default summary, including daily breakdown.
 
 ```bash
-OPC --by-day
+OPC --latest N
 ```
 
-Include daily breakdown.
+Show latest `N` usage requests, for example `OPC --latest 20`.
 
 ```bash
-OPC --latest 20
+OPC --start DD-MM-YYYY
 ```
 
-Show latest 20 usage requests.
+Include requests from this date onward.
+
+```bash
+OPC --end DD-MM-YYYY
+```
+
+Include requests up to and including this date.
+
+```bash
+OPC --start DD-MM-YYYY --end DD-MM-YYYY
+```
+
+Include requests between both dates, inclusive.
 
 ```bash
 OPC --refresh

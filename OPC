@@ -15,7 +15,6 @@ const { pathToFileURL } = require("node:url");
 
 const argv = process.argv.slice(2);
 const opts = {
-  byDay: false,
   latest: 0,
   json: false,
   verbose: false,
@@ -23,14 +22,55 @@ const opts = {
   help: false,
   refresh: false,
   savePages: false,
+  start: null,
+  end: null,
 };
+
+function readOptionValue(name, i) {
+  const value = argv[i + 1];
+  if (!value || value.startsWith("--")) die(`${name} requires a value\nRun OPC --help`);
+  return value;
+}
+
+function parsePositiveInt(value, name) {
+  if (!/^\d+$/.test(String(value || ""))) die(`${name} must be a positive whole number`);
+  const n = Number(value);
+  if (!Number.isSafeInteger(n) || n <= 0) die(`${name} must be a positive whole number`);
+  return n;
+}
+
+function parseDateOption(value, name) {
+  const m = String(value || "").match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (!m) die(`${name} must use DD-MM-YYYY format`);
+  const day = Number(m[1]);
+  const month = Number(m[2]);
+  const year = Number(m[3]);
+  const d = new Date(year, month - 1, day);
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) die(`${name} is not a valid date`);
+  return { day, month, year, value };
+}
+
+function dateBoundary(info, endOfDay = false) {
+  if (!info) return null;
+  const h = endOfDay ? 23 : 0;
+  const m = endOfDay ? 59 : 0;
+  const s = endOfDay ? 59 : 0;
+  const ms = endOfDay ? 999 : 0;
+  return opts.utc
+    ? new Date(Date.UTC(info.year, info.month - 1, info.day, h, m, s, ms))
+    : new Date(info.year, info.month - 1, info.day, h, m, s, ms);
+}
 
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (["-h", "--help", "help"].includes(a)) opts.help = true;
-  else if (["--by-day", "--day", "day", "days"].includes(a)) opts.byDay = true;
-  else if (a === "--latest") opts.latest = Number(argv[++i] || 20);
-  else if (a.startsWith("--latest=")) opts.latest = Number(a.split("=")[1] || 20);
+  else if (["--by-day", "--day", "day", "days"].includes(a)) continue; // Kept as a hidden no-op for old commands; by-day is now always shown.
+  else if (a === "--latest") opts.latest = parsePositiveInt(readOptionValue("--latest", i++), "--latest");
+  else if (a.startsWith("--latest=")) opts.latest = parsePositiveInt(a.split("=")[1], "--latest");
+  else if (a === "--start") opts.start = parseDateOption(readOptionValue("--start", i++), "--start");
+  else if (a.startsWith("--start=")) opts.start = parseDateOption(a.split("=")[1], "--start");
+  else if (a === "--end") opts.end = parseDateOption(readOptionValue("--end", i++), "--end");
+  else if (a.startsWith("--end=")) opts.end = parseDateOption(a.split("=")[1], "--end");
   else if (a === "--json") opts.json = true;
   else if (["-v", "--verbose"].includes(a)) opts.verbose = true;
   else if (a === "--utc") opts.utc = true;
@@ -39,17 +79,22 @@ for (let i = 0; i < argv.length; i++) {
   else die(`Unknown option: ${a}\nRun OPC --help`);
 }
 
+if (opts.start && opts.end && dateBoundary(opts.start).getTime() > dateBoundary(opts.end).getTime()) die("--start must be on or before --end");
+
 if (opts.help) {
   console.log(`OPC - OpenCode usage summary with local pagination cache
 
 Usage:
-  OPC                  Show quota/reset, total spend, spend periods, by-model table
-  OPC --by-day         Also show day-by-day request/token/cost table
-  OPC --latest 20      Show latest N raw usage requests
-  OPC --refresh        Ignore cache and refetch every usage page
-  OPC --save-pages     Debug only: save fetched page JSON snapshots under data/pages/
-  OPC --json           Print machine-readable summary JSON
-  OPC --utc            Group/display dates in UTC instead of local time
+  OPC                              Show quota/reset, total spend, spend periods, by-model table, and by-day table
+  OPC --latest N                   Show latest N raw usage requests (example: OPC --latest 20)
+  OPC --start DD-MM-YYYY           Include requests from this date onward
+  OPC --end DD-MM-YYYY             Include requests up to and including this date
+  OPC --start DD-MM-YYYY --end DD-MM-YYYY
+                                   Include requests between both dates, inclusive
+  OPC --refresh                    Ignore cache and refetch every usage page
+  OPC --save-pages                 Debug only: save fetched page JSON snapshots under data/pages/
+  OPC --json                       Print machine-readable summary JSON
+  OPC --utc                        Group/display dates in UTC instead of local time
 
 Config:
   OPC reads .env next to this script first, then normal environment variables.
@@ -451,7 +496,13 @@ function section(title) {
 }
 
 function summarize(rows, quota, cache) {
-  const clean = rows.map(r => ({ ...r, _date: new Date(r.timeCreated) }));
+  const startAt = dateBoundary(opts.start);
+  const endAt = dateBoundary(opts.end, true);
+  const startMs = startAt?.getTime() ?? -Infinity;
+  const endMs = endAt?.getTime() ?? Infinity;
+  const clean = rows
+    .map(r => ({ ...r, _date: new Date(r.timeCreated) }))
+    .filter(r => Number.isFinite(r._date.getTime()) && r._date.getTime() >= startMs && r._date.getTime() <= endMs);
   clean.sort((a, b) => b._date - a._date);
   const total = newAgg();
   for (const r of clean) addAgg(total, r);
@@ -483,11 +534,19 @@ function summarize(rows, quota, cache) {
 
   const byModel = [...byModelMap.entries()].map(([model, a]) => ({ model, ...a })).sort((a, b) => b.cost - a.cost);
   const byDay = [...byDayMap.entries()].map(([day, a]) => ({ day, ...a })).sort((a, b) => b.day.localeCompare(a.day));
-  return { workspaceId, requests: clean.length, first: clean.at(-1)?._date, last: clean[0]?._date, quota, cache, total, today, last7, month, byModel, byDay, latest: clean.slice(0, opts.latest || 0) };
+  const dateFilter = opts.start || opts.end ? {
+    start: opts.start?.value || null,
+    end: opts.end?.value || null,
+    timezone: opts.utc ? "UTC" : "local",
+  } : null;
+  return { workspaceId, dateFilter, requests: clean.length, first: clean.at(-1)?._date, last: clean[0]?._date, quota, cache, total, today, last7, month, byModel, byDay, latest: clean.slice(0, opts.latest || 0) };
 }
 
 function printSummary(s) {
   console.log(`\nOpenCode usage  │  ${s.workspaceId}`);
+  if (s.dateFilter) {
+    console.log(`Date filter: ${s.dateFilter.start || "earliest"} → ${s.dateFilter.end || "latest"} (${s.dateFilter.timezone})`);
+  }
   console.log(`Requests: ${fmtInt(s.requests)}${s.first && s.last ? `  │  Range: ${fmtDateTime(s.first)} → ${fmtDateTime(s.last)}` : ""}`);
   if (s.cache) {
     console.log(`Cache: ${path.relative(process.cwd(), s.cache.file) || s.cache.file}  │  API pages fetched: ${s.cache.apiPagesFetched}  │  New requests: ${fmtInt(s.cache.newRequests)}`);
@@ -508,7 +567,7 @@ function printSummary(s) {
     ["Today", fmtInt(s.today.requests), fmtInt(s.today.totalInput), fmtInt(s.today.output), fmtInt(s.today.reasoning), fmtMoney(s.today.cost)],
     ["Last 7d", fmtInt(s.last7.requests), fmtInt(s.last7.totalInput), fmtInt(s.last7.output), fmtInt(s.last7.reasoning), fmtMoney(s.last7.cost)],
     ["This month", fmtInt(s.month.requests), fmtInt(s.month.totalInput), fmtInt(s.month.output), fmtInt(s.month.reasoning), fmtMoney(s.month.cost)],
-    ["All time", fmtInt(s.total.requests), fmtInt(s.total.totalInput), fmtInt(s.total.output), fmtInt(s.total.reasoning), fmtMoney(s.total.cost)],
+    [s.dateFilter ? "Selected" : "All time", fmtInt(s.total.requests), fmtInt(s.total.totalInput), fmtInt(s.total.output), fmtInt(s.total.reasoning), fmtMoney(s.total.cost)],
   ]));
 
   section("By model");
@@ -524,17 +583,15 @@ function printSummary(s) {
     fmtMoney(m.cost),
   ])));
 
-  if (opts.byDay) {
-    section("By day");
-    console.log(table(["Day", "Requests", "Input+cache", "Output", "Reasoning", "Cost"], s.byDay.map(d => [
-      d.day,
-      fmtInt(d.requests),
-      fmtInt(d.totalInput),
-      fmtInt(d.output),
-      fmtInt(d.reasoning),
-      fmtMoney(d.cost),
-    ])));
-  }
+  section("By day");
+  console.log(table(["Day", "Requests", "Input+cache", "Output", "Reasoning", "Cost"], s.byDay.map(d => [
+    d.day,
+    fmtInt(d.requests),
+    fmtInt(d.totalInput),
+    fmtInt(d.output),
+    fmtInt(d.reasoning),
+    fmtMoney(d.cost),
+  ])));
 
   if (opts.latest) {
     section(`Latest ${opts.latest}`);

@@ -64,7 +64,7 @@ Useful checks:
 ```bash
 ./OPC --help
 ./OPC --json
-./OPC --by-day
+./OPC --start 01-01-2026 --end 31-01-2026
 ```
 
 For a non-destructive cache check, run:
