@@ -14,7 +14,7 @@ It:
 - fetches paginated usage records
 - incrementally merges new records into a local cache
 - parses OpenCode Go quota/reset windows
-- prints request/cost/token summaries by period, model, and optionally day
+- prints request/cost/token summaries by period, model, and day, plus first/last request range duration
 
 ## Important files
 

@@ -85,7 +85,7 @@ if (opts.help) {
   console.log(`OPC - OpenCode usage summary with local pagination cache
 
 Usage:
-  OPC                              Show quota/reset, total spend, spend periods, by-model table, and by-day table
+  OPC                              Show quota/reset, request range duration, spend periods, by-model table, and by-day table
   OPC --latest N                   Show latest N raw usage requests (example: OPC --latest 20)
   OPC --start DD-MM-YYYY           Include requests from this date onward
   OPC --end DD-MM-YYYY             Include requests up to and including this date
@@ -458,6 +458,14 @@ function fmtDateTime(d) {
   if (opts.utc) return d.toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC");
   return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
+function fmtRangeDuration(start, end) {
+  if (!start || !end) return "";
+  let minutes = Math.max(0, Math.round((end.getTime() - start.getTime()) / 60000));
+  const days = Math.floor(minutes / 1440); minutes %= 1440;
+  const hours = Math.floor(minutes / 60); minutes %= 60;
+  const unit = (n, name) => `${n} ${name}${n === 1 ? "" : "s"}`;
+  return [unit(days, "day"), unit(hours, "hour"), unit(minutes, "minute")].join(" ");
+}
 function fmtInt(n) { return Math.round(num(n)).toLocaleString("en-US"); }
 function fmtMoney(n) { return `$${num(n).toFixed(4)}`; }
 function humanDuration(sec) {
@@ -539,7 +547,9 @@ function summarize(rows, quota, cache) {
     end: opts.end?.value || null,
     timezone: opts.utc ? "UTC" : "local",
   } : null;
-  return { workspaceId, dateFilter, requests: clean.length, first: clean.at(-1)?._date, last: clean[0]?._date, quota, cache, total, today, last7, month, byModel, byDay, latest: clean.slice(0, opts.latest || 0) };
+  const first = clean.at(-1)?._date;
+  const last = clean[0]?._date;
+  return { workspaceId, dateFilter, requests: clean.length, first, last, rangeDuration: fmtRangeDuration(first, last), quota, cache, total, today, last7, month, byModel, byDay, latest: clean.slice(0, opts.latest || 0) };
 }
 
 function printSummary(s) {
@@ -547,7 +557,7 @@ function printSummary(s) {
   if (s.dateFilter) {
     console.log(`Date filter: ${s.dateFilter.start || "earliest"} → ${s.dateFilter.end || "latest"} (${s.dateFilter.timezone})`);
   }
-  console.log(`Requests: ${fmtInt(s.requests)}${s.first && s.last ? `  │  Range: ${fmtDateTime(s.first)} → ${fmtDateTime(s.last)}` : ""}`);
+  console.log(`Requests: ${fmtInt(s.requests)}${s.first && s.last ? `  │  Range: ${fmtDateTime(s.first)} → ${fmtDateTime(s.last)} | ${s.rangeDuration}` : ""}`);
   if (s.cache) {
     console.log(`Cache: ${path.relative(process.cwd(), s.cache.file) || s.cache.file}  │  API pages fetched: ${s.cache.apiPagesFetched}  │  New requests: ${fmtInt(s.cache.newRequests)}`);
   }

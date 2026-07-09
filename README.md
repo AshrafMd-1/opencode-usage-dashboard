@@ -14,6 +14,7 @@ Running:
 
 shows:
 
+- request count, first/last request range, and range duration
 - OpenCode Go quota windows:
   - rolling/session usage
   - weekly usage
@@ -224,7 +225,7 @@ Then it displays both relative reset time and exact local reset time.
 OPC
 ```
 
-Default summary, including daily breakdown.
+Default summary, including request range duration and daily breakdown.
 
 ```bash
 OPC --latest N
