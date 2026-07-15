@@ -4,13 +4,13 @@ Guidance for coding agents working in this repository.
 
 ## Project purpose
 
-This repository is a localhost-only Docker Compose dashboard for OpenCode usage:
+This repository is a self-hosted Docker Compose dashboard for OpenCode usage:
 
 ```text
 OpenCode → Node collector/control service → PostgreSQL → Rill/DuckDB → dashboard
 ```
 
-It replaces the former `OPC` CLI. Do not reintroduce CLI summaries or the JSON cache unless explicitly requested.
+The supported product is the collector, PostgreSQL store, controls page, and Rill dashboard. Do not add separate reporting surfaces or file-based caches.
 
 ## Important files
 
@@ -30,17 +30,12 @@ It replaces the former `OPC` CLI. Do not reintroduce CLI summaries or the JSON c
 
 Never commit or print secrets. `OPENCODE_AUTH` is an auth cookie and must be treated as a live credential.
 
-Ignored sensitive/local paths include:
-
-```gitignore
-.env
-data/
-```
+The ignored `.env` file contains live local secrets and must never be read aloud, printed, or committed.
 
 Additional requirements:
 
 - Keep PostgreSQL internal to Compose.
-- Keep controls and Rill published only on `127.0.0.1` for the MVP.
+- Keep direct host bindings for controls and Rill on `127.0.0.1`; remote access must pass through an authenticated proxy such as Coolify plus Cloudflare Access.
 - Do not expose key IDs, auth cookies, DSNs, raw OpenCode payloads, or stack traces in the controls page/API.
 - Keep errors sanitized through `sanitizeError`.
 - Rill Developer has no production authentication boundary; never document direct public exposure as safe.
@@ -61,7 +56,7 @@ Preserve the five-sequential-request overlap logic for incremental updates. The 
 
 Page size is 50. Page snapshots remain disabled. If no overlap is found, fetch to the final short page and use idempotent PostgreSQL upserts.
 
-PostgreSQL is the durable source of truth. Do not import `data/usage.json`; a new database performs a clean refetch.
+PostgreSQL is the durable source of truth. A new database performs a clean refetch from OpenCode.
 
 Manual and automatic refreshes must share one pipeline. Guard runs with both the in-process flag and PostgreSQL advisory lock. A PostgreSQL success must not be rolled back merely because Rill is down; retain state and permit a Rill-only retry.
 
@@ -72,6 +67,7 @@ Manual and automatic refreshes must share one pipeline. Guard runs with both the
 - PostgreSQL timestamps are UTC; Rill controls display timezone.
 - The collector triggers model refreshes. Do not add a competing Rill cron.
 - Rill release archives must be pinned and checksum-verified for both AMD64 and ARM64.
+- Keep Rill in `--preview` mode for its dashboard-only interface; Cloudflare Access provides the authentication boundary for remote deployment.
 
 ## Dependencies
 

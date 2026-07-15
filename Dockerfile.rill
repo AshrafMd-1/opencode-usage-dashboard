@@ -37,4 +37,4 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=10 \
   CMD curl -fsS http://127.0.0.1:9009/v1/ping >/dev/null || exit 1
 
 ENTRYPOINT ["rill"]
-CMD ["start", "/app/rill", "--no-open", "--port", "9009", "--port-grpc", "49009"]
+CMD ["start", "/app/rill", "--no-open", "--preview", "--port", "9009", "--port-grpc", "49009"]

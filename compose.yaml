@@ -69,7 +69,7 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >-
-        exec rill start /app/rill --no-open --port 9009 --port-grpc 49009
+        exec rill start /app/rill --no-open --preview --port 9009 --port-grpc 49009
         --env POSTGRES_HOST=$${POSTGRES_HOST}
         --env POSTGRES_PORT=$${POSTGRES_PORT}
         --env POSTGRES_DB=$${POSTGRES_DB}
