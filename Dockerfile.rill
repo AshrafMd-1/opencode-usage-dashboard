@@ -1,4 +1,5 @@
 FROM ubuntu:22.04 AS downloader
+USER root
 
 ARG TARGETARCH
 ARG RILL_VERSION=0.87.8
@@ -19,6 +20,7 @@ RUN apt-get -o Acquire::ForceIPv4=true -o Acquire::Retries=5 update && apt-get i
     && chmod 0755 /usr/local/bin/rill
 
 FROM ubuntu:22.04
+USER root
 RUN apt-get -o Acquire::ForceIPv4=true -o Acquire::Retries=5 update && apt-get install -y --no-install-recommends ca-certificates curl git \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 1001 rill \
