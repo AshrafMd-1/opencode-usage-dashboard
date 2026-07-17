@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
     && useradd --create-home --uid 1001 --gid rill --shell /bin/sh rill \
     && mkdir -p /home/rill/.rill \
     && chown -R rill:rill /home/rill/.rill
-COPY --from=downloader /usr/local/bin/rill /usr/local/bin/rill
+COPY --from=0 /usr/local/bin/rill /usr/local/bin/rill
 COPY --chown=rill:rill rill /app/rill
 USER rill
 WORKDIR /app/rill
