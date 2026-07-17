@@ -35,6 +35,8 @@ The ignored `.env` file contains live local secrets and must never be read aloud
 
 Additional requirements:
 
+- Keep Coolify's **Use Docker Build Secrets** option disabled. Secrets are runtime-only; Coolify's Dockerfile rewriting is incompatible with this multi-service build.
+- Keep `postgres/init.sql` embedded through `Dockerfile.postgres`; do not restore a relative runtime file bind mount for the initialization script.
 - Keep PostgreSQL internal to Compose.
 - Keep direct host bindings for controls and Rill on `127.0.0.1`; remote access must pass through an authenticated proxy such as Coolify plus Cloudflare Access.
 - Do not expose key IDs, auth cookies, DSNs, raw OpenCode payloads, or stack traces in the controls page/API.

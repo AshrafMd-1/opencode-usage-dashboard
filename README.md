@@ -124,7 +124,7 @@ This is the simplest production path for an ARM64 Ampere server. `Dockerfile.ril
 
 1. Push this repository to GitHub. The repository may be public because tracked files contain no credentials; keep all real values in Coolify runtime secrets and never commit `.env`.
 2. In Coolify, create a **Docker Compose** resource from that repository and select `compose.yaml`.
-3. Add these environment variables in Coolify. Mark `OPENCODE_AUTH`, `POSTGRES_PASSWORD`, and `OPENAI_API_KEY` as runtime secrets, not build-only values:
+3. Add these environment variables in Coolify. Mark `OPENCODE_AUTH`, `POSTGRES_PASSWORD`, and `OPENAI_API_KEY` as runtime secrets, not build-only values. Leave Coolify's **Use Docker Build Secrets** option disabled: these values are not needed during image builds, and Dockerfile rewriting is unnecessary for this multi-service Compose project.
 
    ```dotenv
    OPENCODE_USAGE_URL=https://opencode.ai/workspace/<workspace-id>/usage
