@@ -3,6 +3,10 @@ const os = require("node:os");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 
+// OpenCode's monthly usage loader returns workspace key metadata alongside its
+// aggregate rows. The hash can be overridden if OpenCode changes that loader.
+const DEFAULT_KEY_METADATA_SERVER_ID = "15702f3a12ff8bff357f8c2aa154a17e65b746d5f6b96adc9002c86ee0c15205";
+
 function headers(config, url, accept = "text/html") {
   const target = new URL(url, config.origin);
   const result = {
@@ -35,6 +39,7 @@ function parseConfig(env = process.env) {
     origin: parsed.origin,
     workspaceId: decodeURIComponent(match[1]),
     cookieHeader: /^auth=/i.test(auth.trim()) ? auth.trim() : `auth=${auth.trim()}`,
+    keyMetadataServerId: env.OPENCODE_KEY_METADATA_SERVER_ID || DEFAULT_KEY_METADATA_SERVER_ID,
   };
 }
 
@@ -107,12 +112,18 @@ async function createUsageFetcher(config) {
       return realFetch(url, { ...init, headers: requestHeaders });
     };
     const getUsage = createServerReference(discovered.serverId);
+    const getKeyMetadata = createServerReference(config.keyMetadataServerId);
 
     return {
       async fetchPage(page) {
         const rows = await getUsage(config.workspaceId, page);
         if (!Array.isArray(rows)) throw new Error(`Unexpected OpenCode usage response on page ${page}`);
         return rows;
+      },
+      async fetchKeyMetadata(now = new Date()) {
+        const result = await getKeyMetadata(config.workspaceId, now.getUTCFullYear(), now.getUTCMonth(), "+00:00");
+        if (!result || !Array.isArray(result.keys)) throw new Error("Unexpected OpenCode key metadata response");
+        return result.keys;
       },
       close() {
         globalThis.fetch = originalFetch;

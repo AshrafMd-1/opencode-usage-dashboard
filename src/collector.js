@@ -1,9 +1,10 @@
-const { fingerprint, normalizeRow, sanitizeError } = require("./usage");
+const { fingerprint, normalizeKeyMetadata, normalizeRow, sanitizeError } = require("./usage");
 const { createUsageFetcher, parseConfig } = require("./opencode");
 const {
   getCachedFingerprints,
   readState,
   updateState,
+  upsertUsageKeys,
   upsertUsageRows,
 } = require("./db");
 
@@ -111,6 +112,15 @@ class Collector {
       const cachedKeys = await getCachedFingerprints(client);
       fetcher = await createUsageFetcher(config);
       const collected = await collectPages(fetcher.fetchPage, cachedKeys, config.workspaceId);
+      let keyMetadata = [];
+      let keyMetadataWarning = null;
+      try {
+        keyMetadata = (await fetcher.fetchKeyMetadata())
+          .map(key => normalizeKeyMetadata(key, config.workspaceId))
+          .filter(Boolean);
+      } catch (error) {
+        keyMetadataWarning = `Key-name refresh failed: ${sanitizeError(error)}`;
+      }
       fetcher.close();
       fetcher = null;
       const normalized = [];
@@ -129,6 +139,7 @@ class Collector {
 
       await client.query("BEGIN");
       let added = 0;
+      await upsertUsageKeys(client, keyMetadata);
       for (let index = 0; index < normalized.length; index += 500) {
         const result = await upsertUsageRows(client, normalized.slice(index, index + 500));
         added += result.added;
@@ -138,7 +149,7 @@ class Collector {
       await updateState(client, {
         last_completed_at: new Date(),
         last_success: true,
-        last_error: invalidRows ? `${invalidRows} malformed row(s) skipped` : null,
+        last_error: [invalidRows ? `${invalidRows} malformed row(s) skipped` : null, keyMetadataWarning].filter(Boolean).join("; ") || null,
         pages_fetched: collected.pagesFetched,
         rows_added: added,
         invalid_rows: invalidRows,

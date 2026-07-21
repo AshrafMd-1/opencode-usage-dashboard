@@ -1,7 +1,7 @@
 const http = require("node:http");
 const { URL } = require("node:url");
 const { Collector } = require("./collector");
-const { createPool, initializeState, readState, waitForDatabase } = require("./db");
+const { createPool, ensureSchema, initializeState, readState, waitForDatabase } = require("./db");
 const { sanitizeError } = require("./usage");
 
 const CONTROL_PORT = Number(process.env.CONTROL_PORT || 3000);
@@ -143,6 +143,7 @@ function createControlServer({ collector, pool }) {
 async function main() {
   const pool = createPool();
   await waitForDatabase(pool);
+  await ensureSchema(pool);
   const initialAutoRefresh = !["0", "false", "no", "off"].includes(String(process.env.AUTO_REFRESH_ENABLED || "true").toLowerCase());
   const initialState = await initializeState(pool, initialAutoRefresh);
   const collector = new Collector({

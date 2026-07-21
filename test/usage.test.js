@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { fingerprint, normalizeRow, sanitizeError } = require("../src/usage");
+const { fingerprint, normalizeKeyMetadata, normalizeRow, sanitizeError } = require("../src/usage");
 
 function row(overrides = {}) {
   return {
@@ -43,6 +43,15 @@ test("normalization derives precision-safe strings and USD cost", () => {
   assert.equal(normalized.inputTokens, "10");
   assert.equal(normalizeRow(row({ timeCreated: "invalid" })), null);
   assert.equal(normalizeRow(row({ inputTokens: -1 })), null);
+});
+
+test("key metadata normalization preserves names and deletion state", () => {
+  assert.deepEqual(
+    normalizeKeyMetadata({ id: "key_1", displayName: "Personal - Pi", deleted: true }, "wrk_1"),
+    { workspaceId: "wrk_1", keyId: "key_1", displayName: "Personal - Pi", deleted: true },
+  );
+  assert.equal(normalizeKeyMetadata({ id: "key_1", displayName: "  " }, "wrk_1"), null);
+  assert.equal(normalizeKeyMetadata({ displayName: "Missing ID" }, "wrk_1"), null);
 });
 
 test("errors redact cookies, credentials, and database URLs", () => {

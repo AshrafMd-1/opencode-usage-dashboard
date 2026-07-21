@@ -26,6 +26,16 @@ CREATE INDEX IF NOT EXISTS usage_requests_provider_idx ON usage_requests (provid
 CREATE INDEX IF NOT EXISTS usage_requests_plan_idx ON usage_requests (plan);
 CREATE INDEX IF NOT EXISTS usage_requests_workspace_idx ON usage_requests (workspace_id);
 
+CREATE TABLE IF NOT EXISTS usage_keys (
+  workspace_id TEXT NOT NULL,
+  key_id TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  deleted BOOLEAN NOT NULL DEFAULT FALSE,
+  first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (workspace_id, key_id)
+);
+
 CREATE TABLE IF NOT EXISTS collector_state (
   singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton),
   auto_refresh_enabled BOOLEAN NOT NULL DEFAULT TRUE,

@@ -8,6 +8,7 @@ dimensions:
   - model
   - provider
   - subscription
+  - api_key
   - session
 
 measures:
@@ -42,6 +43,7 @@ defaults:
     - model
     - provider
     - subscription
+    - api_key
   measures:
     - requests
     - usd_cost

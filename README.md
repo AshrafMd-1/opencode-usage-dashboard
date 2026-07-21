@@ -16,7 +16,7 @@ The **OpenCode Usage** dashboard provides time trends and comparisons for:
 - input, output, reasoning, cache-read, and cache-write tokens
 - total input/cache and total token volume
 - average estimated API cost per request and cache-read ratio
-- model, provider, plan, workspace, and session dimensions
+- model, provider, plan, API key display name, workspace, and session dimensions
 - today, week/month to date, 7-day, 30-day, 3-month, all-time, and custom ranges
 
 Quota/reset data is intentionally not included because it has a different data grain. Cost values are source-reported estimates normalized to USD; they are not verified invoices or account charges.
@@ -105,6 +105,8 @@ Auto-refresh defaults to every 6 hours. `AUTO_REFRESH_ENABLED` initializes a new
 
 The incremental collector preserves the five-sequential-request fingerprint overlap. A healthy no-change run normally fetches only the first 50-row OpenCode page. If no overlap is found, it safely scans all pages and upserts by fingerprint.
 
+Each refresh also retrieves the workspace key directory returned by OpenCode's monthly usage loader. Rill displays its friendly key names while PostgreSQL retains key IDs only as stable join values. Deleted keys remain named for historical usage. If OpenCode changes that internal loader, request collection still succeeds and the controls page reports the key-name enrichment warning; `OPENCODE_KEY_METADATA_SERVER_ID` can temporarily override the loader ID.
+
 ## Security
 
 `OPENCODE_AUTH` and `OPENAI_API_KEY` are live credentials. Never commit, print, or share `.env`. Do not put the AI key directly in `rill/connectors/openai.yaml`, `compose.yaml`, screenshots, logs, or issue reports.
@@ -129,6 +131,8 @@ This is the simplest production path for an ARM64 Ampere server. `Dockerfile.ril
    ```dotenv
    OPENCODE_USAGE_URL=https://opencode.ai/workspace/<workspace-id>/usage
    OPENCODE_AUTH=<raw-auth-cookie-value>
+   # Optional only if OpenCode changes its internal key-metadata loader:
+   OPENCODE_KEY_METADATA_SERVER_ID=
    POSTGRES_DB=opencode_usage
    POSTGRES_USER=opencode
    POSTGRES_PASSWORD=<long-random-password>

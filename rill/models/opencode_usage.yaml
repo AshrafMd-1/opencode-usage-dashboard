@@ -4,22 +4,30 @@ materialize: true
 
 sql: |
   SELECT
-    fingerprint,
-    request_id,
-    workspace_id,
-    time_created,
-    model,
-    provider,
-    plan,
-    session_id,
-    input_tokens,
-    output_tokens,
-    reasoning_tokens,
-    cache_read_tokens,
-    cache_write_5m_tokens,
-    cache_write_1h_tokens,
-    cost_usd
-  FROM usage_requests
+    requests.fingerprint,
+    requests.request_id,
+    requests.workspace_id,
+    requests.time_created,
+    requests.model,
+    requests.provider,
+    requests.plan,
+    requests.session_id,
+    CASE
+      WHEN requests.key_id IS NULL OR TRIM(requests.key_id) = '' THEN 'Unattributed'
+      WHEN key_metadata.display_name IS NULL OR TRIM(key_metadata.display_name) = '' THEN 'Unlabeled key'
+      ELSE key_metadata.display_name
+    END AS api_key,
+    requests.input_tokens,
+    requests.output_tokens,
+    requests.reasoning_tokens,
+    requests.cache_read_tokens,
+    requests.cache_write_5m_tokens,
+    requests.cache_write_1h_tokens,
+    requests.cost_usd
+  FROM usage_requests AS requests
+  LEFT JOIN usage_keys AS key_metadata
+    ON key_metadata.workspace_id = requests.workspace_id
+   AND key_metadata.key_id = requests.key_id
 
 tests:
   - name: unique_fingerprints

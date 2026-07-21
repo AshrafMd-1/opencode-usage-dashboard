@@ -12,6 +12,7 @@ filters:
     - model
     - provider
     - subscription
+    - api_key
 allow_custom_time_range: true
 
 time_ranges:

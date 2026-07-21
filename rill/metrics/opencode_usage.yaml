@@ -24,6 +24,10 @@ dimensions:
     display_name: Session ID
     expression: CASE WHEN session_id IS NULL OR TRIM(session_id) = '' THEN 'Unattributed' ELSE session_id END
     description: OpenCode session identifier. Requests without a session ID are displayed as Unattributed.
+  - name: api_key
+    display_name: API Key
+    column: api_key
+    description: OpenCode key display name. Requests with a key ID that has no available metadata are displayed as Unlabeled key.
 
 measures:
   - name: requests

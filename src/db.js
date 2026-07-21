@@ -18,6 +18,20 @@ function createPool(env = process.env) {
   });
 }
 
+async function ensureSchema(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS usage_keys (
+      workspace_id TEXT NOT NULL,
+      key_id TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      deleted BOOLEAN NOT NULL DEFAULT FALSE,
+      first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (workspace_id, key_id)
+    )
+  `);
+}
+
 async function waitForDatabase(pool, attempts = 30) {
   let lastError;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
@@ -78,6 +92,25 @@ async function upsertUsageRows(client, rows) {
   return { added: rows.reduce((count, row) => count + (existing.has(row.fingerprint) ? 0 : 1), 0) };
 }
 
+async function upsertUsageKeys(client, keys) {
+  if (!keys.length) return;
+  const values = [];
+  const tuples = keys.map((key, index) => {
+    const row = [key.workspaceId, key.keyId, key.displayName, key.deleted];
+    values.push(...row);
+    const offset = index * row.length;
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4})`;
+  });
+  await client.query(`
+    INSERT INTO usage_keys (workspace_id, key_id, display_name, deleted)
+    VALUES ${tuples.join(",\n")}
+    ON CONFLICT (workspace_id, key_id) DO UPDATE SET
+      display_name = EXCLUDED.display_name,
+      deleted = EXCLUDED.deleted,
+      last_seen_at = NOW()
+  `, values);
+}
+
 async function readState(pool) {
   const result = await pool.query("SELECT * FROM collector_state WHERE singleton = TRUE");
   return result.rows[0];
@@ -105,10 +138,12 @@ async function updateState(client, fields) {
 
 module.exports = {
   createPool,
+  ensureSchema,
   getCachedFingerprints,
   initializeState,
   readState,
   updateState,
+  upsertUsageKeys,
   upsertUsageRows,
   waitForDatabase,
 };

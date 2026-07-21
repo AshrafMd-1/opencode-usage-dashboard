@@ -73,6 +73,18 @@ function normalizeRow(row, defaultWorkspaceId = "") {
   };
 }
 
+function normalizeKeyMetadata(key, workspaceId = "") {
+  if (!key || typeof key !== "object" || !key.id) return null;
+  const displayName = String(key.displayName || "").trim();
+  if (!displayName) return null;
+  return {
+    workspaceId: String(workspaceId),
+    keyId: String(key.id),
+    displayName,
+    deleted: Boolean(key.deleted),
+  };
+}
+
 function sanitizeError(error) {
   let message = String(error?.message || error || "Unknown error");
   message = message
@@ -87,6 +99,7 @@ function sanitizeError(error) {
 module.exports = {
   fingerprint,
   fingerprintParts,
+  normalizeKeyMetadata,
   normalizeRow,
   number,
   sanitizeError,
